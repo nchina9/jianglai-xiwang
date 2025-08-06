@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>중국어 스도쿠 채점기</title>
+  <style>
+    table { border-collapse: collapse; margin: 20px auto; }
+    td {
+  width: 80px;
+  height: 80px;
+  text-align: center;
+  border: 1px solid #333;
+  font-size: 12px;
+  overflow: hidden;
+}
+
+select {
+  width: 100%;
+  height: 100%;
+  font-size: 12px;
+  border: none;
+  text-align-last: center;
+  background-color: white;
+}
+    }
+    td:nth-child(3n) { border-right: 3px solid #000; }
+    tr:nth-child(3n) td { border-bottom: 3px solid #000; }
+    #checkBtn {
+      display: block; margin: 20px auto;
+      font-size: 16px; padding: 10px 20px;
+    }
+    .correct { background-color: #ccffcc; }
+    .incorrect { background-color: #ffcccc; }
+    #chartContainer {
+      width: 300px;
+      margin: 20px auto;
+    }
+  </style>
+</head>
+<body>
+
+<h1 style="text-align: center;">🎯 중국어 단어 스도쿠 채점기</h1>
+<table id="sudoku"></table>
+<button id="checkBtn">채점하기</button>
+
+<div id="chartContainer">
+  <canvas id="scoreChart" width="300" height="300"></canvas>
+</div>
+
+<script>
+const words = [
+  "xǐhuan", "chànggē", "nà", "huì", "tán", "gāngqín", "dāngrán", "xiǎng", "dāng"
+];
+
+const initialBoard = [
+  ["xǐhuan", "", "nà", "xiǎng", "", "", "", "", ""],
+  ["", "huì", "", "", "gāngqín", "", "", "", "dāngrán"],
+  ["", "", "dāngrán", "tán", "", "dāng", "", "", ""],
+  ["chànggē", "", "", "", "", "tán", "", "", ""],
+  ["gāngqín", "", "", "chànggē", "xiǎng", "", "", "", ""],
+  ["", "", "xǐhuan", "", "huì", "", "", "tán", ""],
+  ["huì", "", "", "", "", "", "", "dāngrán", ""],
+  ["", "", "tán", "", "dāng", "", "", "", "nà"],
+  ["xiǎng", "", "", "", "", "chànggē", "huì", "", ""]
+];
+
+const answerBoard = [
+  ["xǐhuan", "dāng", "nà", "xiǎng", "chànggē", "huì", "dāngrán", "gāngqín", "tán"],
+  ["tán", "huì", "chànggē", "dāngrán", "gāngqín", "nà", "xiǎng", "xǐhuan", "dāng"],
+  ["gāngqín", "xiǎng", "dāngrán", "tán", "xǐhuan", "dāng", "huì", "nà", "chànggē"],
+  ["chànggē", "xiǎng", "huì", "dāng", "nà", "tán", "gāngqín", "dāngrán", "xǐhuan"],
+  ["gāngqín", "dāngrán", "tán", "chànggē", "xiǎng", "xǐhuan", "nà", "huì", "dāng"],
+  ["nà", "dāng", "xǐhuan", "gāngqín", "huì", "dāngrán", "chànggē", "tán", "xiǎng"],
+  ["huì", "chànggē", "xiǎng", "nà", "dāng", "gāngqín", "xǐhuan", "dāngrán", "tán"],
+  ["dāngrán", "gāngqín", "tán", "huì", "dāng", "xǐhuan", "chànggē", "xiǎng", "nà"],
+  ["xiǎng", "nà", "dāng", "dāngrán", "tán", "chànggē", "huì", "gāngqín", "xǐhuan"]
+];
+
+// 테이블 생성
+const sudoku = document.getElementById("sudoku");
+
+for (let i = 0; i < 9; i++) {
+  const tr = document.createElement("tr");
+  for (let j = 0; j < 9; j++) {
+    const td = document.createElement("td");
+    td.dataset.row = i;
+    td.dataset.col = j;
+    const value = initialBoard[i][j];
+    if (value !== "") {
+      td.textContent = value;
+      td.style.backgroundColor = "#eee";
+    } else {
+      const select = document.createElement("select");
+      const blank = document.createElement("option");
+      blank.value = "";
+      blank.text = "";
+      select.appendChild(blank);
+      words.forEach(w => {
+        const opt = document.createElement("option");
+        opt.value = w;
+        opt.text = w;
+        select.appendChild(opt);
+      });
+      td.appendChild(select);
+    }
+    tr.appendChild(td);
+  }
+  sudoku.appendChild(tr);
+}
+
+// 채점 기능
+document.getElementById("checkBtn").addEventListener("click", () => {
+  let correct = 0;
+  let total = 0;
+
+  document.querySelectorAll("#sudoku td").forEach(td => {
+    const row = parseInt(td.dataset.row);
+    const col = parseInt(td.dataset.col);
+    const answer = answerBoard[row][col];
+    const isFixed = initialBoard[row][col] !== "";
+
+    if (!isFixed) {
+      const select = td.querySelector("select");
+      const userAnswer = select.value;
+      total++;
+
+      td.classList.remove("correct", "incorrect");
+
+      if (userAnswer === answer) {
+        td.classList.add("correct");
+        correct++;
+      } else {
+        td.classList.add("incorrect");
+      }
+    }
+  });
+
+  const score = total > 0 ? Math.round((correct / total) * 100) : 0;
+  alert(`맞은 개수: ${correct} / ${total}\n점수: ${score}점`);
+
+  drawChart(correct, total - correct);
+});
+
+// 점수 그래프
+function drawChart(correct, incorrect) {
+  const canvas = document.getElementById("scoreChart");
+  const ctx = canvas.getContext("2d");
+  const total = correct + incorrect;
+  const correctAngle = (correct / total) * 2 * Math.PI;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // 전체 배경 (오답)
+  ctx.beginPath();
+  ctx.fillStyle = "#ddd";
+  ctx.moveTo(150, 150);
+  ctx.arc(150, 150, 100, 0, 2 * Math.PI);
+  ctx.fill();
+
+  // 정답 영역
+  ctx.beginPath();
+  ctx.fillStyle = "#66cc66";
+  ctx.moveTo(150, 150);
+  ctx.arc(150, 150, 100, -0.5 * Math.PI, -0.5 * Math.PI + correctAngle);
+  ctx.fill();
+
+  ctx.fillStyle = "#000";
+  ctx.font = "20px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(`정답: ${correct}`, 150, 145);
+  ctx.fillText(`오답: ${incorrect}`, 150, 170);
+}
+</script>
+
+</body>
+</html>
